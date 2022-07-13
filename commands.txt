@@ -1,0 +1,75 @@
+# References
+https://docs.aws.amazon.com/secretsmanager/latest/userguide/integrating_csi_driver_tutorial.html
+https://secrets-store-csi-driver.sigs.k8s.io/getting-started/installation.html#installation
+https://secrets-store-csi-driver.sigs.k8s.io/getting-started/usage.html
+https://secrets-store-csi-driver.sigs.k8s.io/troubleshooting.html
+
+# Tools required
+# eksctl | --> No longer used
+- Was used to map k8s service account to IAM role once both created, now no longer used
+- Once mapped, K8s doesn't require ongoing changes, even as deployment are rotated
+helm |
+- Can deploy secrets-store-csi-driver deployment directly, but this avoids CI
+- Rather, we export this deployment to K8s file, using this command: 
+- Command: helm template csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver 
+- Should export this regularly to update our CI version of code
+- this tool only used to intermittently export helm chart for CI updates
+k8s |
+- Used to deploy csi-secrets-store-provider-aws and secrets-store-csi-driver, which handle SA --> IAM connection
+- Deploys the SecretProviderClass resource that identified which secrets to pull
+- Build the Service Account which maps to an IAM role
+
+
+# Turn on OIDC - use terraform for this
+#eksctl utils associate-iam-oidc-provider --region=us-west-2 --cluster=Uw2DevKylerTesting --approve #Only run this once
+#2022-07-12 14:34:41 [ℹ]  will create IAM Open ID Connect provider for cluster "Uw2DevKylerTesting" in "us-west-2"
+#2022-07-12 14:34:43 [✔]  created IAM Open ID Connect provider for cluster "Uw2DevKylerTesting" in "us-west-2"
+
+# Deploy a SecretProviderClass specifying the name of the secrets to mount
+apiVersion: secrets-store.csi.x-k8s.io/v1alpha1
+kind: SecretProviderClass
+metadata:
+  name: kyler-secrets-provider-name
+spec:
+  provider: aws
+  parameters:
+    objects: |
+        - objectName: "super-secret-kyler"
+          objectType: "secretsmanager"
+
+# Created a sa
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kyler-secret-fetcher-sa
+
+# Associated sa to pod
+spec:
+  serviceAccountName: kyler-secret-fetcher-sa
+
+# Link EKS Service account to IAM role
+> eksctl create iamserviceaccount --name kyler-secret-fetcher-sa --namespace default --cluster Uw2DevKylerTesting --attach-role-arn arn:aws:iam::072100331905:role/kyler_eks_role --approve --override-existing-serviceaccounts
+
+# If need to delete
+# eksctl delete iamserviceaccount --name kyler-secret-fetcher-sa --namespace default --cluster Uw2DevKylerTesting
+
+# Use helm to deploy secrets store CSI driver to (linux) EKS cluster nodes
+# NOPE - Now export this to K8s file and apply directly
+#> helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
+#"secrets-store-csi-driver" has been added to your repositories
+#> helm install csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver --namespace kube-system
+#NAME: csi-secrets-store
+#LAST DEPLOYED: Tue Jul 12 15:44:09 2022
+#NAMESPACE: kube-system
+#STATUS: deployed
+#REVISION: 1
+#TEST SUITE: None
+#NOTES:
+#The Secrets Store CSI Driver is getting deployed to your cluster.
+#
+#To verify that Secrets Store CSI Driver has started, run:
+#
+#  kubectl --namespace=kube-system get pods -l "app=secrets-store-csi-driver"
+#
+#Now you can follow these steps https://secrets-store-csi-driver.sigs.k8s.io/getting-started/usage.html
+#to create a SecretProviderClass resource, and a deployment using the SecretProviderClass.
