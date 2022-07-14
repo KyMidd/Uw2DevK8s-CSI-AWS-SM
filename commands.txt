@@ -19,12 +19,6 @@ k8s |
 - Deploys the SecretProviderClass resource that identified which secrets to pull
 - Build the Service Account which maps to an IAM role
 
-
-# Turn on OIDC - use terraform for this
-#eksctl utils associate-iam-oidc-provider --region=us-west-2 --cluster=Uw2DevKylerTesting --approve #Only run this once
-#2022-07-12 14:34:41 [ℹ]  will create IAM Open ID Connect provider for cluster "Uw2DevKylerTesting" in "us-west-2"
-#2022-07-12 14:34:43 [✔]  created IAM Open ID Connect provider for cluster "Uw2DevKylerTesting" in "us-west-2"
-
 # Deploy a SecretProviderClass specifying the name of the secrets to mount
 apiVersion: secrets-store.csi.x-k8s.io/v1alpha1
 kind: SecretProviderClass
@@ -47,8 +41,19 @@ metadata:
 spec:
   serviceAccountName: kyler-secret-fetcher-sa
 
-# Link EKS Service account to IAM role
-> eksctl create iamserviceaccount --name kyler-secret-fetcher-sa --namespace default --cluster Uw2DevKylerTesting --attach-role-arn arn:aws:iam::072100331905:role/kyler_eks_role --approve --override-existing-serviceaccounts
+
+
+##
+# Reference stuff, no longer used
+##
+
+# Turn on OIDC - use terraform for this
+#eksctl utils associate-iam-oidc-provider --region=us-west-2 --cluster=Uw2DevKylerTesting --approve #Only run this once
+#2022-07-12 14:34:41 [ℹ]  will create IAM Open ID Connect provider for cluster "Uw2DevKylerTesting" in "us-west-2"
+#2022-07-12 14:34:43 [✔]  created IAM Open ID Connect provider for cluster "Uw2DevKylerTesting" in "us-west-2"
+
+# Link EKS Service account to IAM role - this is no longer used
+#> eksctl create iamserviceaccount --name kyler-secret-fetcher-sa --namespace default --cluster Uw2DevKylerTesting #--attach-role-arn arn:aws:iam::072100331905:role/kyler_eks_role --approve --override-existing-serviceaccounts
 
 # If need to delete
 # eksctl delete iamserviceaccount --name kyler-secret-fetcher-sa --namespace default --cluster Uw2DevKylerTesting
